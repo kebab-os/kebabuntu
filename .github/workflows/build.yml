@@ -1,4 +1,4 @@
-name: Build Kebabian ISO
+name: Build Kebabian ISO (Quick)
 
 on:
   push:
@@ -23,14 +23,14 @@ jobs:
         mkdir -p kebabian-build
         cd kebabian-build
         
-        # Use the debian-live config, not ubuntu
+        # Minimal config without security updates
         lb config \
-          --mode debian \
           --distribution bookworm \
           --architecture amd64 \
           --archive-areas "main contrib non-free" \
           --mirror-bootstrap "http://deb.debian.org/debian/" \
-          --mirror-chroot-security "http://deb.debian.org/debian-security/"
+          --mirror-chroot "http://deb.debian.org/debian/" \
+          --mirror-binary "http://deb.debian.org/debian/"
         
         # Add packages
         mkdir -p config/package-lists
