@@ -56,12 +56,8 @@ jobs:
           # Remove isolinux/syslinux to avoid conflicts
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # ===== FORCE GRUB ONLY, DISABLE SYSLINUX COMPLETELY =====
-          cat > config/binary << 'EOF'
-          LB_BOOTLOADER=\"grub\"
-          LB_BOOTLOADER_SYSLINUX=\"false\"
-          LB_BINARY_PACKAGE_LISTS=\"\"
-          EOF
+          # Force GRUB only, disable syslinux completely (using printf to avoid heredoc issues)
+          printf '%s\n' 'LB_BOOTLOADER=\"grub\"' 'LB_BOOTLOADER_SYSLINUX=\"false\"' 'LB_BINARY_PACKAGE_LISTS=\"\"' > config/binary
           
           lb build --verbose
           
