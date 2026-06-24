@@ -38,7 +38,9 @@ jobs:
           
           mkdir -p config/package-lists
           cat > config/package-lists/kebabuntu.list.chroot << 'EOF'
-          xubuntu-desktop
+          xfce4
+          xfce4-goodies
+          lightdm
           neofetch
           git
           vim
@@ -47,18 +49,39 @@ jobs:
           wget
           sudo
           network-manager
-          lightdm
+          firefox
           EOF
           
           lb build
           
-          cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
+          # Copy ISO to the workspace root
+          if [ -f live-image-amd64.hybrid.iso ]; then
+            echo "✅ ISO found, copying to workspace..."
+            cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
+          else
+            echo "❌ ISO not found!"
+            ls -la
+            exit 1
+          fi
         "
     
+    - name: Verify ISO exists
+      run: |
+        echo "=== Files in workspace ==="
+        ls -la
+        if [ -f kebabuntu.iso ]; then
+          echo "✅ ISO found! Size: $(ls -lh kebabuntu.iso | awk '{print $5}')"
+        else
+          echo "❌ ISO NOT found in workspace!"
+          echo "Searching for ISO..."
+          find . -name "*.iso" -ls || echo "No ISO anywhere!"
+          exit 1
+        fi
+    
     - name: Upload ISO as Artifact
-      if: always()
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: kebabuntu-iso
         path: kebabuntu.iso
-        if-no-files-found: warn
+        if-no-files-found: error
