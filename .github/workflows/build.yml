@@ -26,7 +26,9 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
+          # Force Ubuntu mode
           lb config \
+            --mode ubuntu \
             --distribution jammy \
             --architecture amd64 \
             --archive-areas 'main universe multiverse restricted' \
@@ -52,46 +54,20 @@ jobs:
           firefox
           EOF
           
-          # Build with VERBOSE output to see what's happening
+          # Build with verbose output
           lb build --verbose
           
-          # List all files after build
-          echo "=== Files in kebabuntu-build after build ==="
-          ls -la
-          find . -name "*.iso" -ls || echo "No ISO found"
-          
-          # Check if ISO exists and copy it
+          # Check for ISO
           if [ -f live-image-amd64.hybrid.iso ]; then
-            echo "✅ ISO found inside container!"
-            ls -la live-image-amd64.hybrid.iso
+            echo "✅ ISO found!"
             cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
             chmod 644 /workspace/kebabuntu.iso
           else
-            echo "❌ ISO not found inside container!"
-            echo "=== Searching for any ISO files ==="
-            find . -name "*.iso" -ls 2>/dev/null || echo "No ISO found anywhere"
-            echo "=== Build log may show errors above ==="
+            echo "❌ ISO not found!"
+            ls -la
             exit 1
           fi
         "
-    
-    - name: Check for ISO
-      run: |
-        echo "=== Checking workspace ==="
-        ls -la
-        if [ -f kebabuntu.iso ]; then
-          echo "✅ ISO found!"
-          ls -lh kebabuntu.iso
-        else
-          echo "❌ ISO not found!"
-          # Check inside kebabuntu-build
-          if [ -d kebabuntu-build ]; then
-            echo "=== Contents of kebabuntu-build ==="
-            ls -la kebabuntu-build/
-            find kebabuntu-build -name "*.iso" -ls || echo "No ISO in kebabuntu-build"
-          fi
-          exit 1
-        fi
     
     - name: Upload ISO as Artifact
       if: success()
