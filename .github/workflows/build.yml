@@ -26,15 +26,7 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Create custom auto/config – no heredoc, no backslashes
-          mkdir -p auto
-          echo '#!/bin/sh'                        >  auto/config
-          echo 'LB_BOOTLOADER="grub"'             >> auto/config
-          echo 'LB_BOOTLOADER_SYSLINUX="false"'   >> auto/config
-          echo 'LB_BOOTLOADER_GRUB_LEGACY="false"'>> auto/config
-          echo 'LB_BINARY_PACKAGE_LISTS=""'       >> auto/config
-          echo 'LB_MEMTEST="false"'               >> auto/config
-          
+          # Basic configuration
           lb config \
             --mode ubuntu \
             --distribution jammy \
@@ -63,19 +55,14 @@ jobs:
           
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # Overwrite config/binary – again, no backslashes
-          echo 'LB_BOOTLOADER="grub"'             >  config/binary
-          echo 'LB_BOOTLOADER_SYSLINUX="false"'   >> config/binary
-          echo 'LB_BOOTLOADER_GRUB_LEGACY="false"'>> config/binary
-          echo 'LB_BINARY_PACKAGE_LISTS=""'       >> config/binary
-          echo 'LB_MEMTEST="false"'               >> config/binary
-          
-          # Export the variables as a last line of defence
-          export LB_BOOTLOADER='grub'
-          export LB_BOOTLOADER_SYSLINUX='false'
-          export LB_BOOTLOADER_GRUB_LEGACY='false'
-          export LB_BINARY_PACKAGE_LISTS=''
-          export LB_MEMTEST='false'
+          # ===== PATCH live-build to remove any grub-legacy installation =====
+          for f in /usr/lib/live/build/binary_grub /usr/share/live/build/binary_grub; do
+            if [ -f \"\$f\" ]; then
+              sed -i '/grub-legacy/d' \"\$f\"
+            fi
+          done
+          # Also search and patch any script containing grub-legacy (fallback)
+          find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' -exec sed -i '/grub-legacy/d' {} \;
           
           lb build --verbose
           
