@@ -55,7 +55,8 @@ jobs:
           
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # ===== PATCH live-build scripts: remove any grub-legacy / stage2_eltorito references =====
+          # ===== PATCH ALL offending live-build scripts =====
+          # Remove grub-legacy from binary_grub scripts
           for f in /usr/lib/live/build/binary_grub /usr/share/live/build/binary_grub; do
             if [ -f \"\$f\" ]; then
               sed -i '/grub-legacy/d' \"\$f\"
@@ -65,14 +66,21 @@ jobs:
           find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' -exec sed -i '/grub-legacy/d' {} \;
           find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' -exec sed -i '/stage2_eltorito/d' {} \;
           
-          # ===== Force GRUB2 El Torito boot image (use cdboot.img) =====
-          export LB_BOOTLOADER_GRUB_ELTORITO_IMAGE=/usr/lib/grub/i386-pc/cdboot.img
-          # Verify the file exists
-          ls -l /usr/lib/grub/i386-pc/cdboot.img
+          # Replace stage2_eltorito with cdboot.img in binary_iso script
+          for f in /usr/lib/live/build/binary_iso /usr/share/live/build/binary_iso; do
+            if [ -f \"\$f\" ]; then
+              sed -i 's|boot/grub/stage2_eltorito|/usr/lib/grub/i386-pc/cdboot.img|g' \"\$f\"
+            fi
+          done
+          find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_iso*' -exec sed -i 's|boot/grub/stage2_eltorito|/usr/lib/grub/i386-pc/cdboot.img|g' {} \;
+          
+          # Ensure proper PATH (fix isohybrid not found)
+          export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"
           
           # Disable memtest and syslinux
           export LB_MEMTEST='false'
           export LB_BOOTLOADER_SYSLINUX='false'
+          export LB_BOOTLOADER_GRUB_LEGACY='false'
           
           lb build --verbose
           
