@@ -13,17 +13,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Install live-build
+    - name: Install live-build and syslinux
       run: |
         sudo apt-get update
-        sudo apt-get install -y live-build debootstrap
+        sudo apt-get install -y live-build debootstrap syslinux isolinux
     
     - name: Build Kebabian ISO
       run: |
         mkdir -p kebabian-build
         cd kebabian-build
         
-        # Disable memtest86+ and linux-image
+        # Configure with explicit syslinux paths
         lb config \
           --mode debian \
           --distribution bookworm \
@@ -34,9 +34,11 @@ jobs:
           --parent-mirror-binary "https://deb.debian.org/debian/" \
           --security false \
           --linux-packages "none" \
-          --memtest false
+          --memtest false \
+          --syslinux "/usr/lib/syslinux/modules/bios" \
+          --syslinux-timeout 0
         
-        # Add packages (without memtest)
+        # Add packages
         mkdir -p config/package-lists
         cat > config/package-lists/kebabian.list.chroot << 'EOF'
         neofetch
@@ -52,7 +54,7 @@ jobs:
         lightdm
         EOF
         
-        # Hook to add security repo correctly
+        # Hook to add security repo
         mkdir -p config/hooks/normal
         cat > config/hooks/normal/0001-add-security.hook.chroot << 'EOF'
         #!/bin/bash
@@ -61,7 +63,23 @@ jobs:
         EOF
         chmod +x config/hooks/normal/0001-add-security.hook.chroot
         
-        sudo lb build
+        # Hook to copy syslinux files to the right place
+        mkdir -p config/hooks/normal
+        cat > config/hooks/normal/0002-fix-syslinux.hook.chroot << 'EOF'
+        #!/bin/bash
+        # Create the directories syslinux expects
+        mkdir -p /usr/lib/syslinux
+        mkdir -p /usr/lib/ISOLINUX
+        
+        # Copy syslinux files if they exist elsewhere
+        if [ -d /usr/lib/syslinux/modules/bios ]; then
+          cp /usr/lib/syslinux/modules/bios/*.c32 /usr/lib/syslinux/ 2>/dev/null || true
+          cp /usr/lib/syslinux/modules/bios/isolinux.bin /usr/lib/ISOLINUX/ 2>/dev/null || true
+        fi
+        EOF
+        chmod +x config/hooks/normal/0002-fix-syslinux.hook.chroot
+        
+        sudo lb build --verbose
     
     - name: Upload ISO
       if: always()
