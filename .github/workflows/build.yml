@@ -13,17 +13,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Install live-build
+    - name: Install live-build and grub
       run: |
         sudo apt-get update
-        sudo apt-get install -y live-build debootstrap
+        sudo apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin
     
     - name: Build Kebabuntu ISO
       run: |
         mkdir -p kebabuntu-build
         cd kebabuntu-build
         
-        # Kebabuntu - with syslinux completely disabled
+        # Kebabuntu - with GRUB bootloader
         lb config \
           --distribution jammy \
           --architecture amd64 \
@@ -33,7 +33,7 @@ jobs:
           --iso-publisher "Kebabuntu" \
           --iso-volume "Kebabuntu Live" \
           --iso-application "Kebabuntu OS" \
-          --syslinux false
+          --bootloader "grub"
         
         # Add packages
         mkdir -p config/package-lists
