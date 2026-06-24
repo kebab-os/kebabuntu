@@ -13,56 +13,65 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Install live-build and GRUB
+    - name: Build Kebabuntu inside Docker (Ubuntu jammy)
       run: |
-        sudo apt-get update
-        sudo apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin
+        docker run --rm -v $(pwd):/workspace -w /workspace ubuntu:jammy bash -c "
+          set -e  # Stop on any error
+          
+          # Update and install required packages
+          apt-get update
+          apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin \
+                             squashfs-tools xorriso isolinux syslinux-utils \
+                             mtools dosfstools curl wget git vim
+          
+          # Create build directory
+          mkdir -p kebabuntu-build
+          cd kebabuntu-build
+          
+          # Configure the ISO
+          lb config \
+            --distribution jammy \
+            --architecture amd64 \
+            --archive-areas 'main universe multiverse restricted' \
+            --debian-installer false \
+            --bootappend-live 'boot=live components quiet splash' \
+            --iso-publisher 'Kebabuntu' \
+            --iso-volume 'Kebabuntu Live' \
+            --iso-application 'Kebabuntu OS'
+          
+          # Add packages
+          mkdir -p config/package-lists
+          cat > config/package-lists/kebabuntu.list.chroot << 'PKGEOF'
+          xubuntu-desktop
+          neofetch
+          git
+          vim
+          htop
+          curl
+          wget
+          sudo
+          network-manager
+          lightdm
+          PKGEOF
+          
+          # Build the ISO
+          lb build
+          
+          # Copy and rename ISO to the workspace root
+          cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
+        "
     
-    - name: Build Kebabuntu ISO
-      run: |
-        mkdir -p kebabuntu-build
-        cd kebabuntu-build
-        
-        # Kebabuntu with GRUB bootloader
-        lb config \
-          --distribution jammy \
-          --architecture amd64 \
-          --archive-areas "main universe multiverse restricted" \
-          --debian-installer false \
-          --bootappend-live "boot=live components quiet splash" \
-          --iso-publisher "Kebabuntu" \
-          --iso-volume "Kebabuntu Live" \
-          --iso-application "Kebabuntu OS" \
-          --bootloader "grub"
-        
-        # Add packages
-        mkdir -p config/package-lists
-        cat > config/package-lists/kebabuntu.list.chroot << 'EOF'
-        neofetch
-        git
-        vim
-        htop
-        curl
-        wget
-        sudo
-        network-manager
-        xubuntu-desktop
-        lightdm
-        EOF
-        
-        sudo lb build
-    
-    - name: Create Release
+    - name: Create GitHub Release
       if: success()
       uses: softprops/action-gh-release@v1
       with:
-        files: kebabuntu-build/live-image-amd64.hybrid.iso
+        files: kebabuntu.iso
         tag_name: latest
         name: "Kebabuntu Latest Build"
         body: |
           ## 🥙 Kebabuntu
           
-          ### What's included:
+          ### Features:
           - Xubuntu Desktop (XFCE)
           - neofetch, git, vim, htop
           - NetworkManager
@@ -70,7 +79,7 @@ jobs:
           
           ### How to use:
           1. Download the ISO
-          2. Create a bootable USB with Rufus
+          2. Create a bootable USB with Rufus (Windows) or balenaEtcher
           3. Boot and enjoy!
         draft: false
         prerelease: true
@@ -82,5 +91,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: kebabuntu-iso
-        path: kebabuntu-build/live-image-amd64.hybrid.iso
+        path: kebabuntu.iso
         if-no-files-found: warn
