@@ -23,12 +23,12 @@ jobs:
         mkdir -p kebabuntu-build
         cd kebabuntu-build
         
-        # Kebabuntu - Ubuntu-based
+        # Kebabuntu - Ubuntu-based, NO installer
         lb config \
           --distribution jammy \
           --architecture amd64 \
           --archive-areas "main universe multiverse restricted" \
-          --debian-installer live \
+          --debian-installer false \
           --bootappend-live "boot=live components quiet splash" \
           --iso-publisher "Kebabuntu" \
           --iso-volume "Kebabuntu Live" \
