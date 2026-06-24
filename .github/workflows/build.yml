@@ -5,10 +5,6 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-# Grant necessary permissions for creating releases
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -17,22 +13,19 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Build Kebabuntu inside Docker (Ubuntu jammy)
+    - name: Build Kebabuntu inside Docker
       run: |
         docker run --rm -v $(pwd):/workspace -w /workspace ubuntu:jammy bash -c "
           set -e
           
-          # Install dependencies
           apt-get update
           apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin \
                              squashfs-tools xorriso isolinux syslinux-utils \
                              mtools dosfstools curl wget git vim
           
-          # Create build directory
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Configure the ISO
           lb config \
             --distribution jammy \
             --architecture amd64 \
@@ -43,7 +36,6 @@ jobs:
             --iso-volume 'Kebabuntu Live' \
             --iso-application 'Kebabuntu OS'
           
-          # Add packages
           mkdir -p config/package-lists
           cat > config/package-lists/kebabuntu.list.chroot << 'EOF'
           xubuntu-desktop
@@ -58,47 +50,10 @@ jobs:
           lightdm
           EOF
           
-          # Build the ISO
           lb build
           
-          # Copy the ISO to workspace
           cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
         "
-    
-    - name: Verify ISO exists
-      run: |
-        if [ -f kebabuntu.iso ]; then
-          echo "✅ ISO found: $(ls -lh kebabuntu.iso)"
-        else
-          echo "❌ ISO not found!"
-          ls -la
-          exit 1
-        fi
-    
-    - name: Create GitHub Release
-      if: success()
-      uses: softprops/action-gh-release@v1
-      with:
-        files: kebabuntu.iso
-        tag_name: latest
-        name: "Kebabuntu Latest Build"
-        body: |
-          ## 🥙 Kebabuntu
-          
-          ### Features:
-          - Xubuntu Desktop (XFCE)
-          - neofetch, git, vim, htop
-          - NetworkManager
-          - GRUB bootloader
-          
-          ### How to use:
-          1. Download the ISO
-          2. Create a bootable USB with Rufus (Windows) or balenaEtcher
-          3. Boot and enjoy!
-        draft: false
-        prerelease: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Upload ISO as Artifact
       if: always()
