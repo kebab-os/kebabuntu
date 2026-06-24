@@ -56,12 +56,12 @@ jobs:
           # Remove isolinux/syslinux to avoid conflicts
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # Force GRUB only, disable syslinux, and prevent grub-legacy installation
+          # Force GRUB only, disable syslinux and grub-legacy (no backslashes!)
           printf '%s\n' \
-            'LB_BOOTLOADER=\"grub\"' \
-            'LB_BOOTLOADER_SYSLINUX=\"false\"' \
-            'LB_BOOTLOADER_GRUB_LEGACY=\"false\"' \
-            'LB_BINARY_PACKAGE_LISTS=\"\"' \
+            'LB_BOOTLOADER="grub"' \
+            'LB_BOOTLOADER_SYSLINUX="false"' \
+            'LB_BOOTLOADER_GRUB_LEGACY="false"' \
+            'LB_BINARY_PACKAGE_LISTS=""' \
             > config/binary
           
           lb build --verbose
