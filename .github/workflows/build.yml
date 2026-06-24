@@ -23,7 +23,7 @@ jobs:
         mkdir -p kebabian-build
         cd kebabian-build
         
-        # Disable linux-image generation to avoid Contents file check
+        # Disable memtest86+ and linux-image
         lb config \
           --mode debian \
           --distribution bookworm \
@@ -33,9 +33,10 @@ jobs:
           --parent-mirror-chroot "https://deb.debian.org/debian/" \
           --parent-mirror-binary "https://deb.debian.org/debian/" \
           --security false \
-          --linux-packages "none"
+          --linux-packages "none" \
+          --memtest false
         
-        # Add packages
+        # Add packages (without memtest)
         mkdir -p config/package-lists
         cat > config/package-lists/kebabian.list.chroot << 'EOF'
         neofetch
