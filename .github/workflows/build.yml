@@ -26,7 +26,7 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Simple configuration - just set bootloader
+          # Basic configuration
           lb config \
             --mode ubuntu \
             --distribution jammy \
@@ -53,14 +53,15 @@ jobs:
           echo 'network-manager' >> config/package-lists/kebabuntu.list.chroot
           echo 'firefox' >> config/package-lists/kebabuntu.list.chroot
           
-          # Remove isolinux/syslinux to avoid conflicts
+          # Remove isolinux leftovers
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # Force GRUB only, disable syslinux and grub-legacy (safe echo method)
-          echo 'LB_BOOTLOADER="grub"'              >  config/binary
-          echo 'LB_BOOTLOADER_SYSLINUX="false"'     >> config/binary
-          echo 'LB_BOOTLOADER_GRUB_LEGACY="false"'  >> config/binary
-          echo 'LB_BINARY_PACKAGE_LISTS=""'         >> config/binary
+          # ===== Force the right settings via environment (bypass file overrides) =====
+          export LB_BOOTLOADER='grub'
+          export LB_BOOTLOADER_SYSLINUX='false'
+          export LB_BOOTLOADER_GRUB_LEGACY='false'
+          export LB_BINARY_PACKAGE_LISTS=''
+          export LB_MEMTEST='false'   # skip memtest to keep build clean
           
           lb build --verbose
           
