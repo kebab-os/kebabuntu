@@ -26,7 +26,20 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Basic configuration
+          # ===== Create a custom auto/config BEFORE lb config =====
+          # This overrides the Ubuntu-specific defaults that force grub-legacy
+          mkdir -p auto
+          cat > auto/config << 'EOF'
+          #!/bin/sh
+          # Custom auto/config for Kebabuntu – disables syslinux & legacy GRUB
+          LB_BOOTLOADER=\"grub\"
+          LB_BOOTLOADER_SYSLINUX=\"false\"
+          LB_BOOTLOADER_GRUB_LEGACY=\"false\"
+          LB_BINARY_PACKAGE_LISTS=\"\"
+          LB_MEMTEST=\"false\"
+          EOF
+          
+          # Now lb config will source our auto/config, not the Ubuntu one
           lb config \
             --mode ubuntu \
             --distribution jammy \
@@ -53,21 +66,7 @@ jobs:
           echo 'network-manager' >> config/package-lists/kebabuntu.list.chroot
           echo 'firefox' >> config/package-lists/kebabuntu.list.chroot
           
-          # Remove isolinux leftovers
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
-          
-          # ===== Patch live-build to remove the broken grub-legacy reference =====
-          find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' -exec grep -l 'grub-legacy' {} \; | while read f; do
-            echo \"Patching \$f\"
-            sed -i 's/install.*grub-legacy/# \\0/' \"\$f\"
-          done
-          
-          # Also export safe values as a double safety net
-          export LB_BOOTLOADER='grub'
-          export LB_BOOTLOADER_SYSLINUX='false'
-          export LB_BOOTLOADER_GRUB_LEGACY='false'
-          export LB_BINARY_PACKAGE_LISTS=''
-          export LB_MEMTEST='false'
           
           lb build --verbose
           
