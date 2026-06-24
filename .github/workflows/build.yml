@@ -1,4 +1,4 @@
-name: Build Kebabian ISO (Patched)
+name: Build Kebabian ISO
 
 on:
   push:
@@ -23,18 +23,16 @@ jobs:
         mkdir -p kebabian-build
         cd kebabian-build
         
-        # Initial config with NO security
+        # Use the correct mirror URLs
         lb config \
           --mode debian \
           --distribution bookworm \
           --architecture amd64 \
           --archive-areas "main contrib non-free" \
+          --mirror-bootstrap "http://deb.debian.org/debian/" \
+          --mirror-chroot "http://deb.debian.org/debian/" \
+          --mirror-binary "http://deb.debian.org/debian/" \
           --security false
-        
-        # MANUALLY PATCH the config to use correct security URL
-        # This directly edits the config file that live-build generates
-        echo "LB_MIRROR_CHROOT_SECURITY=\"http://security.debian.org/debian-security\"" >> config/common
-        echo "LB_MIRROR_BINARY_SECURITY=\"http://security.debian.org/debian-security\"" >> config/common
         
         # Add packages
         mkdir -p config/package-lists
@@ -52,17 +50,14 @@ jobs:
         lightdm
         EOF
         
-        # Hook to fix sources.list (belt and suspenders)
+        # Hook to add security repo correctly
         mkdir -p config/hooks/normal
-        cat > config/hooks/normal/0000-fix-security.hook.chroot << 'EOF'
+        cat > config/hooks/normal/0001-add-security.hook.chroot << 'EOF'
         #!/bin/bash
-        # Remove any broken security entries
-        sed -i '/security.debian.org/d' /etc/apt/sources.list
-        # Add correct one
         echo "deb http://security.debian.org/debian-security bookworm-security main contrib non-free" >> /etc/apt/sources.list
         apt-get update
         EOF
-        chmod +x config/hooks/normal/0000-fix-security.hook.chroot
+        chmod +x config/hooks/normal/0001-add-security.hook.chroot
         
         sudo lb build
     
