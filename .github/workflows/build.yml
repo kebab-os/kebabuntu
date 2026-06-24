@@ -1,51 +1,40 @@
 name: Build Kebabian ISO
+
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch: # Allows you to manually trigger the build
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest # This is the key: it uses a GitHub-hosted Ubuntu runner[citation:10]
+    runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install live-build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y live-build debootstrap curl wget xorriso syslinux squashfs-tools genisoimage
-
-      - name: Configure Kebabian with lb config
-        run: |
-          mkdir build
-          cd build
-          lb config noauto \
-            --distribution bookworm \
-            --architecture amd64 \
-            --debian-installer true \
-            --bootappend-live "boot=live components persistence" \
-            --iso-publisher "Kebabian" \
-            --iso-volume "Kebabian Live" \
-            --iso-application "Kebabian OS" \
-            --archive-areas "main contrib non-free"
-
-      - name: Customize Kebabian (Copy configs)
-        # This is where you'd copy your custom package lists and hooks from your repo
-        run: |
-          # For example, if you have a config/ directory in your repo root:
-          # cp -r config/ build/config/
-          echo "Placeholder for customization step"
-
-      - name: Build the ISO
-        run: |
-          cd build
-          sudo lb build
-
-      - name: Upload ISO as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: kebabian-iso
-          path: build/live-image-amd64.hybrid.iso
+    - uses: actions/checkout@v4
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y live-build debootstrap squashfs-tools xorriso isolinux syslinux-utils
+        sudo apt-get install -y --no-install-recommends live-build
+    
+    - name: Configure and build
+      run: |
+        mkdir -p kebabian-build
+        cd kebabian-build
+        lb config \
+          --distribution bookworm \
+          --architecture amd64 \
+          --archive-areas "main contrib non-free"
+        
+        # Add packages
+        echo "neofetch" >> config/package-lists/kebabian.list.chroot
+        
+        # Build
+        sudo lb build
+    
+    - name: Upload ISO
+      uses: actions/upload-artifact@v4
+      with:
+        name: kebabian-iso
+        path: kebabian-build/live-image-amd64.hybrid.iso
