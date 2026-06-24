@@ -20,7 +20,7 @@ jobs:
           
           apt-get update
           apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin \
-                             squashfs-tools xorriso isolinux syslinux-utils \
+                             squashfs-tools xorriso isolinux syslinux syslinux-utils \
                              mtools dosfstools curl wget git vim
           
           mkdir -p kebabuntu-build
@@ -55,19 +55,24 @@ jobs:
           
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # ===== PATCH live-build: remove grub-legacy and stage2_eltorito references =====
+          # ===== PATCH live-build: remove any remaining grub-legacy / stage2 references =====
           for f in /usr/lib/live/build/binary_grub /usr/share/live/build/binary_grub; do
             if [ -f \"\$f\" ]; then
               sed -i '/grub-legacy/d' \"\$f\"
               sed -i '/stage2_eltorito/d' \"\$f\"
             fi
           done
-          # Fallback: search any binary_grub script anywhere
           find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' -exec sed -i '/grub-legacy/d' {} \;
           find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' -exec sed -i '/stage2_eltorito/d' {} \;
           
-          # Disable memtest to avoid useless install/remove cycle
+          # ===== Force GRUB2 EL Torito image (no more stage2_eltorito) =====
+          export LB_BOOTLOADER_GRUB_ELTORITO_IMAGE=/usr/lib/grub/i386-pc/eltorito.img
+          # Make sure the file exists (it should)
+          ls -l /usr/lib/grub/i386-pc/eltorito.img
+          
+          # Disable memtest & syslinux
           export LB_MEMTEST='false'
+          export LB_BOOTLOADER_SYSLINUX='false'
           
           lb build --verbose
           
