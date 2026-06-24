@@ -13,7 +13,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Install live-build and grub
+    - name: Install live-build and GRUB
       run: |
         sudo apt-get update
         sudo apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin
@@ -23,7 +23,7 @@ jobs:
         mkdir -p kebabuntu-build
         cd kebabuntu-build
         
-        # Kebabuntu - with GRUB bootloader
+        # Kebabuntu with GRUB bootloader
         lb config \
           --distribution jammy \
           --architecture amd64 \
@@ -52,7 +52,32 @@ jobs:
         
         sudo lb build
     
-    - name: Upload ISO
+    - name: Create Release
+      if: success()
+      uses: softprops/action-gh-release@v1
+      with:
+        files: kebabuntu-build/live-image-amd64.hybrid.iso
+        tag_name: latest
+        name: "Kebabuntu Latest Build"
+        body: |
+          ## 🥙 Kebabuntu
+          
+          ### What's included:
+          - Xubuntu Desktop (XFCE)
+          - neofetch, git, vim, htop
+          - NetworkManager
+          - GRUB bootloader
+          
+          ### How to use:
+          1. Download the ISO
+          2. Create a bootable USB with Rufus
+          3. Boot and enjoy!
+        draft: false
+        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Upload ISO as Artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
