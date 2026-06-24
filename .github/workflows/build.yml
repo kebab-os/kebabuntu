@@ -1,4 +1,84 @@
-echo 'LB_BOOTLOADER="grub"'         >  config/binary
-echo 'LB_BOOTLOADER_SYSLINUX="false"' >> config/binary
-echo 'LB_BOOTLOADER_GRUB_LEGACY="false"' >> config/binary
-echo 'LB_BINARY_PACKAGE_LISTS=""'    >> config/binary
+name: Build Kebabuntu ISO
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Build Kebabuntu inside Docker (Privileged)
+      run: |
+        docker run --privileged --rm -v $(pwd):/workspace -w /workspace ubuntu:jammy bash -c "
+          set -e
+          
+          apt-get update
+          apt-get install -y live-build debootstrap grub-pc-bin grub-efi-amd64-bin \
+                             squashfs-tools xorriso isolinux syslinux-utils \
+                             mtools dosfstools curl wget git vim
+          
+          mkdir -p kebabuntu-build
+          cd kebabuntu-build
+          
+          # Simple configuration - just set bootloader
+          lb config \
+            --mode ubuntu \
+            --distribution jammy \
+            --architecture amd64 \
+            --archive-areas 'main universe multiverse restricted' \
+            --debian-installer false \
+            --bootappend-live 'boot=live components quiet splash' \
+            --iso-publisher 'Kebabuntu' \
+            --iso-volume 'Kebabuntu Live' \
+            --iso-application 'Kebabuntu OS' \
+            --bootloader 'grub'
+          
+          mkdir -p config/package-lists
+          echo 'xfce4' > config/package-lists/kebabuntu.list.chroot
+          echo 'xfce4-goodies' >> config/package-lists/kebabuntu.list.chroot
+          echo 'lightdm' >> config/package-lists/kebabuntu.list.chroot
+          echo 'neofetch' >> config/package-lists/kebabuntu.list.chroot
+          echo 'git' >> config/package-lists/kebabuntu.list.chroot
+          echo 'vim' >> config/package-lists/kebabuntu.list.chroot
+          echo 'htop' >> config/package-lists/kebabuntu.list.chroot
+          echo 'curl' >> config/package-lists/kebabuntu.list.chroot
+          echo 'wget' >> config/package-lists/kebabuntu.list.chroot
+          echo 'sudo' >> config/package-lists/kebabuntu.list.chroot
+          echo 'network-manager' >> config/package-lists/kebabuntu.list.chroot
+          echo 'firefox' >> config/package-lists/kebabuntu.list.chroot
+          
+          # Remove isolinux/syslinux to avoid conflicts
+          rm -rf config/bootloaders/isolinux 2>/dev/null || true
+          
+          # Force GRUB only, disable syslinux and grub-legacy (safe echo method)
+          echo 'LB_BOOTLOADER="grub"'              >  config/binary
+          echo 'LB_BOOTLOADER_SYSLINUX="false"'     >> config/binary
+          echo 'LB_BOOTLOADER_GRUB_LEGACY="false"'  >> config/binary
+          echo 'LB_BINARY_PACKAGE_LISTS=""'         >> config/binary
+          
+          lb build --verbose
+          
+          if [ -f live-image-amd64.hybrid.iso ]; then
+            echo '✅ ISO found!'
+            cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
+            chmod 644 /workspace/kebabuntu.iso
+          else
+            echo '❌ ISO not found!'
+            ls -la
+            exit 1
+          fi
+        "
+    
+    - name: Upload ISO as Artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: kebabuntu-iso
+        path: kebabuntu.iso
+        if-no-files-found: error
