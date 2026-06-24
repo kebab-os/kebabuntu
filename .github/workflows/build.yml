@@ -52,38 +52,44 @@ jobs:
           firefox
           EOF
           
-          lb build
+          # Build with VERBOSE output to see what's happening
+          lb build --verbose
           
-          # Check if ISO exists and copy it OUTSIDE the container
+          # List all files after build
+          echo "=== Files in kebabuntu-build after build ==="
+          ls -la
+          find . -name "*.iso" -ls || echo "No ISO found"
+          
+          # Check if ISO exists and copy it
           if [ -f live-image-amd64.hybrid.iso ]; then
             echo "✅ ISO found inside container!"
             ls -la live-image-amd64.hybrid.iso
-            # Copy to workspace with correct permissions
             cp live-image-amd64.hybrid.iso /workspace/kebabuntu.iso
             chmod 644 /workspace/kebabuntu.iso
           else
             echo "❌ ISO not found inside container!"
-            ls -la
+            echo "=== Searching for any ISO files ==="
+            find . -name "*.iso" -ls 2>/dev/null || echo "No ISO found anywhere"
+            echo "=== Build log may show errors above ==="
             exit 1
           fi
         "
     
-    - name: Verify and set permissions
+    - name: Check for ISO
       run: |
         echo "=== Checking workspace ==="
         ls -la
-        # If ISO exists in kebabuntu-build, copy it out
-        if [ -f kebabuntu-build/live-image-amd64.hybrid.iso ]; then
-          echo "✅ Found ISO in kebabuntu-build!"
-          cp kebabuntu-build/live-image-amd64.hybrid.iso kebabuntu.iso
-          ls -la kebabuntu.iso
-        elif [ -f kebabuntu.iso ]; then
-          echo "✅ ISO found in workspace root!"
-          ls -la kebabuntu.iso
+        if [ -f kebabuntu.iso ]; then
+          echo "✅ ISO found!"
+          ls -lh kebabuntu.iso
         else
-          echo "❌ ISO still not found!"
-          echo "Searching everywhere..."
-          find . -name "*.iso" -ls 2>/dev/null || echo "No ISO found"
+          echo "❌ ISO not found!"
+          # Check inside kebabuntu-build
+          if [ -d kebabuntu-build ]; then
+            echo "=== Contents of kebabuntu-build ==="
+            ls -la kebabuntu-build/
+            find kebabuntu-build -name "*.iso" -ls || echo "No ISO in kebabuntu-build"
+          fi
           exit 1
         fi
     
