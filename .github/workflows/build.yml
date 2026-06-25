@@ -40,11 +40,12 @@ jobs:
             > /workspace/live-system/chroot/etc/apt/sources.list
           
           chroot /workspace/live-system/chroot apt-get update
+          # Install required packages – no lupin-casper, just casper
           chroot /workspace/live-system/chroot apt-get install -y \
             xfce4 xfce4-goodies lightdm lightdm-gtk-greeter \
             neofetch git vim htop curl wget sudo \
             network-manager firefox \
-            linux-image-generic casper lupin-casper \
+            linux-image-generic casper \
             grub-efi-amd64-bin grub-pc-bin
           
           # 4. Clean up
