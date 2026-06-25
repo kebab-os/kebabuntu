@@ -1,4 +1,4 @@
-name: Build Kebabuntu ISO (manual, no live-build)
+name: Build Kebabuntu ISO (fast method - repack Xubuntu)
 
 on:
   push:
@@ -13,82 +13,76 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Build Kebabuntu manually
+    - name: Build Kebabuntu by repacking Xubuntu
       run: |
         docker run --privileged --rm -v $(pwd):/workspace -w /workspace ubuntu:jammy bash -c "
           set -e
           
           apt-get update
-          apt-get install -y debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools isolinux syslinux
+          apt-get install -y xorriso isolinux squashfs-tools wget rsync
           
-          # 1. Bootstrap a minimal Ubuntu system
-          mkdir -p /workspace/live-system/chroot
-          debootstrap --arch=amd64 --components=main,universe,multiverse,restricted \
-            jammy /workspace/live-system/chroot http://archive.ubuntu.com/ubuntu/
+          # Download official Xubuntu 22.04 ISO
+          wget -q https://cdimage.ubuntu.com/xubuntu/releases/22.04/release/xubuntu-22.04.4-desktop-amd64.iso -O /workspace/xubuntu.iso
           
-          # 2. Mount virtual filesystems
-          mount --bind /dev /workspace/live-system/chroot/dev
-          mount --bind /dev/pts /workspace/live-system/chroot/dev/pts
-          mount -t proc proc /workspace/live-system/chroot/proc
-          mount -t sysfs sys /workspace/live-system/chroot/sys
+          mkdir -p /workspace/{iso,squashfs,custom}
           
-          # 3. Set up Ubuntu repositories inside chroot
-          printf '%s\n' \
-            'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
-            'deb http://archive.ubuntu.com/ubuntu jammy-updates main universe multiverse restricted' \
-            'deb http://security.ubuntu.com/ubuntu jammy-security main universe multiverse restricted' \
-            > /workspace/live-system/chroot/etc/apt/sources.list
+          # Extract ISO contents
+          mount -o loop /workspace/xubuntu.iso /mnt
+          rsync -a /mnt/ /workspace/iso/
+          umount /mnt
           
-          chroot /workspace/live-system/chroot apt-get update
-          chroot /workspace/live-system/chroot apt-get install -y \
-            xfce4 xfce4-goodies lightdm lightdm-gtk-greeter \
-            neofetch git vim htop curl wget sudo \
-            network-manager firefox \
-            linux-image-generic casper \
-            grub-efi-amd64-bin grub-pc-bin
+          # Extract the squashfs filesystem
+          unsquashfs -d /workspace/squashfs /workspace/iso/casper/filesystem.squashfs
           
-          # 4. Clean up
-          chroot /workspace/live-system/chroot apt-get clean
-          rm -rf /workspace/live-system/chroot/var/lib/apt/lists/*
+          # Customize the filesystem
+          mkdir -p /workspace/squashfs/usr/share/backgrounds
+          # Add custom wallpaper if available
+          cp /workspace/wallpaper.png /workspace/squashfs/usr/share/backgrounds/kebabuntu-wallpaper.png 2>/dev/null || true
           
-          # 5. Prepare live system files
-          mkdir -p /workspace/live-system/image/{casper,boot/grub}
+          # Customize branding
+          echo 'Kebabuntu 22.04 LTS' > /workspace/squashfs/etc/kebabuntu-release
+          printf 'NAME=\"Kebabuntu\"\nVERSION=\"22.04 LTS\"\nID=kebabuntu\nPRETTY_NAME=\"Kebabuntu 22.04 LTS\"\n' > /workspace/squashfs/usr/lib/os-release
           
-          # Copy kernel and initrd
-          cp /workspace/live-system/chroot/boot/vmlinuz-*-generic /workspace/live-system/image/casper/vmlinuz
-          cp /workspace/live-system/chroot/boot/initrd.img-*-generic /workspace/live-system/image/casper/initrd
+          # Install additional packages via chroot
+          mount --bind /dev /workspace/squashfs/dev
+          mount --bind /dev/pts /workspace/squashfs/dev/pts
+          mount -t proc proc /workspace/squashfs/proc
+          mount -t sysfs sys /workspace/squashfs/sys
           
-          # Create squashfs (excluding boot to avoid duplication)
-          mksquashfs /workspace/live-system/chroot /workspace/live-system/image/casper/filesystem.squashfs -comp xz -e boot
+          chroot /workspace/squashfs apt-get update
+          chroot /workspace/squashfs apt-get install -y neofetch htop vim git curl wget
+          chroot /workspace/squashfs apt-get clean
           
-          # Write filesystem.size
-          printf \$(du -sx --block-size=1 /workspace/live-system/chroot | cut -f1) > /workspace/live-system/image/casper/filesystem.size
+          umount -lf /workspace/squashfs/proc
+          umount -lf /workspace/squashfs/sys
+          umount -lf /workspace/squashfs/dev/pts
+          umount -lf /workspace/squashfs/dev
           
-          # 6. GRUB2 boot setup
-          cp /usr/lib/grub/i386-pc/cdboot.img /workspace/live-system/image/boot/grub/
-          printf 'set timeout=10\nset default=0\n\nmenuentry \"Kebabuntu Live\" {\n    linux /casper/vmlinuz boot=casper quiet splash ---\n    initrd /casper/initrd\n}\n\nmenuentry \"Kebabuntu Live (safe graphics)\" {\n    linux /casper/vmlinuz boot=casper nomodeset quiet splash ---\n    initrd /casper/initrd\n}\n' > /workspace/live-system/image/boot/grub/grub.cfg
+          # Repack squashfs with fast compression
+          mksquashfs /workspace/squashfs /workspace/iso/casper/filesystem.squashfs -comp gzip -noappend
           
-          # 7. Unmount chroot filesystems
-          umount -lf /workspace/live-system/chroot/proc
-          umount -lf /workspace/live-system/chroot/sys
-          umount -lf /workspace/live-system/chroot/dev/pts
-          umount -lf /workspace/live-system/chroot/dev
+          # Update filesystem.size
+          printf \$(du -sx --block-size=1 /workspace/squashfs | cut -f1) > /workspace/iso/casper/filesystem.size
           
-          # 8. Create hybrid ISO with xorriso
+          # Create new ISO
           xorriso -as mkisofs \
             -iso-level 3 \
             -full-iso9660-filenames \
             -volid 'Kebabuntu Live' \
             -publisher Kebabuntu \
             -appid 'Kebabuntu OS' \
-            -eltorito-boot boot/grub/cdboot.img \
-            -eltorito-catalog boot/grub/boot.cat \
+            -eltorito-boot isolinux/isolinux.bin \
+            -eltorito-catalog isolinux/boot.cat \
             -no-emul-boot \
             -boot-load-size 4 \
             -boot-info-table \
+            -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin \
+            -eltorito-alt-boot \
+            -e boot/grub/efi.img \
+            -no-emul-boot \
             -isohybrid-gpt-basdat \
             -output /workspace/kebabuntu.iso \
-            /workspace/live-system/image
+            /workspace/iso
           
           echo '✅ ISO created!'
         "
