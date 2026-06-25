@@ -32,12 +32,12 @@ jobs:
           mount -t proc proc /workspace/live-system/chroot/proc
           mount -t sysfs sys /workspace/live-system/chroot/sys
           
-          # 3. Set up Ubuntu repositories inside chroot
-          cat > /workspace/live-system/chroot/etc/apt/sources.list << 'EOF'
-          deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted
-          deb http://archive.ubuntu.com/ubuntu jammy-updates main universe multiverse restricted
-          deb http://security.ubuntu.com/ubuntu jammy-security main universe multiverse restricted
-          EOF
+          # 3. Set up Ubuntu repositories inside chroot (no heredoc)
+          printf '%s\n' \
+            'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
+            'deb http://archive.ubuntu.com/ubuntu jammy-updates main universe multiverse restricted' \
+            'deb http://security.ubuntu.com/ubuntu jammy-security main universe multiverse restricted' \
+            > /workspace/live-system/chroot/etc/apt/sources.list
           
           chroot /workspace/live-system/chroot apt-get update
           chroot /workspace/live-system/chroot apt-get install -y \
@@ -66,20 +66,7 @@ jobs:
           
           # 6. GRUB2 boot setup
           cp /usr/lib/grub/i386-pc/cdboot.img /workspace/live-system/image/boot/grub/
-          cat > /workspace/live-system/image/boot/grub/grub.cfg << 'EOF'
-          set timeout=10
-          set default=0
-          
-          menuentry \"Kebabuntu Live\" {
-              linux /casper/vmlinuz boot=casper quiet splash ---
-              initrd /casper/initrd
-          }
-          
-          menuentry \"Kebabuntu Live (safe graphics)\" {
-              linux /casper/vmlinuz boot=casper nomodeset quiet splash ---
-              initrd /casper/initrd
-          }
-          EOF
+          printf 'set timeout=10\nset default=0\n\nmenuentry \"Kebabuntu Live\" {\n    linux /casper/vmlinuz boot=casper quiet splash ---\n    initrd /casper/initrd\n}\n\nmenuentry \"Kebabuntu Live (safe graphics)\" {\n    linux /casper/vmlinuz boot=casper nomodeset quiet splash ---\n    initrd /casper/initrd\n}\n' > /workspace/live-system/image/boot/grub/grub.cfg
           
           # 7. Unmount chroot filesystems
           umount -lf /workspace/live-system/chroot/proc
