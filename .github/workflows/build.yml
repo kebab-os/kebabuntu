@@ -54,7 +54,7 @@ jobs:
           
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # Patch binary_grub scripts
+          # Patch binary_grub to remove grub-legacy & stage2_eltorito references
           find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' \
             -exec sed -i '/grub-legacy/d; /stage2_eltorito/d' {} \;
           
@@ -62,28 +62,47 @@ jobs:
           export LB_BOOTLOADER_SYSLINUX='false'
           export LB_BOOTLOADER_GRUB_LEGACY='false'
           
-          # Pre-create boot files in binary/boot/grub
-          mkdir -p binary/boot/grub
-          cp /usr/lib/grub/i386-pc/cdboot.img binary/boot/grub/
-          printf 'set timeout=10\nset default=0\n\nmenuentry \"Kebabuntu Live\" {\n    linux /casper/vmlinuz boot=casper quiet splash ---\n    initrd /casper/initrd\n}\n\nmenuentry \"Kebabuntu Live (safe graphics)\" {\n    linux /casper/vmlinuz boot=casper nomodeset quiet splash ---\n    initrd /casper/initrd\n}\n' > binary/boot/grub/grub.cfg
-          
-          # ===== REPLACE SYSTEM binary_iso SCRIPTS =====
-          CUSTOM_SCRIPT_BASE64='IyEvYmluL3NoCmVjaG8gIlJ1bm5pbmcgY3VzdG9tIGJpbmFyeV9pc28gd2l0aCB4b3JyaXNvLi4uIgp4b3JyaXNvIC1hcyBta2lzb2ZzIC1pc28tbGV2ZWwgMyAtZnVsbC1pc286MC1maWxlbmFtZXMgLXZvbGlkICIkTEJfSVNPX1ZPTFVNRSIgLXB1Ymxpc2hlciAiJExCX0lTT19QVUJMSVNIRVIiIC1hcHBpZCAiJExCX0lTT19BUFBMSUNBVElPTiIgLWVsdG9yaXRvLWJvb3QgYm9vdC9ncnViL2NkYm9vdC5pbWcgLWVsdG9yaXRvLWNhdGFsb2cgYm9vdC9ncnViL2Jvb3QuY2F0IC1uby1lbXVsLWJvb3QgLWJvb3QtbG9hZC1zaXplIDQgLWJvb3QtaW5mby10YWJsZSAtbHNvaHlicmlkLWdwdC1iYXNkYXQgLW91dHB1dCAiJExCX0lTT19JTUFHRSIgYmluYXJ5Cg=='
-          echo \"\$CUSTOM_SCRIPT_BASE64\" | base64 -d > /tmp/custom_binary_iso
-          chmod +x /tmp/custom_binary_iso
-          
-          # Overwrite any existing binary_iso script in system paths
-          for path in /usr/lib/live/build/binary_iso /usr/share/live/build/binary_iso; do
-            if [ -f \"\$path\" ]; then
-              cp /tmp/custom_binary_iso \"\$path\"
-            fi
-          done
-          
-          # Also place it in config/scripts (extra safety)
-          mkdir -p config/scripts
-          cp /tmp/custom_binary_iso config/scripts/binary_iso
-          
+          # Run the build, allow failure at the ISO stage
+          set +e
           lb build --verbose
+          set -e
+          
+          # If binary/casper exists, the important parts are done
+          if [ -d binary/casper ]; then
+            echo 'Binary directory exists, creating ISO manually...'
+            
+            # Ensure boot directory and GRUB2 files
+            mkdir -p binary/boot/grub
+            cp /usr/lib/grub/i386-pc/cdboot.img binary/boot/grub/
+            
+            printf 'set timeout=10\nset default=0\n\nmenuentry \"Kebabuntu Live\" {\n    linux /casper/vmlinuz boot=casper quiet splash ---\n    initrd /casper/initrd\n}\n\nmenuentry \"Kebabuntu Live (safe graphics)\" {\n    linux /casper/vmlinuz boot=casper nomodeset quiet splash ---\n    initrd /casper/initrd\n}\n' > binary/boot/grub/grub.cfg
+            
+            # Copy kernel and initrd from chroot if missing
+            if [ ! -f binary/casper/vmlinuz ]; then
+              cp chroot/boot/vmlinuz-* binary/casper/vmlinuz 2>/dev/null || true
+            fi
+            if [ ! -f binary/casper/initrd ]; then
+              cp chroot/boot/initrd.img-* binary/casper/initrd 2>/dev/null || true
+            fi
+            
+            # Create hybrid ISO with xorriso (no genisoimage, no isohybrid needed)
+            xorriso -as mkisofs \
+              -iso-level 3 \
+              -full-iso9660-filenames \
+              -volid 'Kebabuntu Live' \
+              -publisher Kebabuntu \
+              -appid 'Kebabuntu OS' \
+              -eltorito-boot boot/grub/cdboot.img \
+              -eltorito-catalog boot/grub/boot.cat \
+              -no-emul-boot \
+              -boot-load-size 4 \
+              -boot-info-table \
+              -isohybrid-gpt-basdat \
+              -output live-image-amd64.hybrid.iso \
+              binary
+            
+            echo 'ISO creation complete.'
+          fi
           
           if [ -f live-image-amd64.hybrid.iso ]; then
             echo '✅ ISO found!'
