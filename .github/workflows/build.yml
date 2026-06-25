@@ -32,7 +32,7 @@ jobs:
           mount -t proc proc /workspace/live-system/chroot/proc
           mount -t sysfs sys /workspace/live-system/chroot/sys
           
-          # 3. Set up Ubuntu repositories inside chroot (no heredoc)
+          # 3. Set up Ubuntu repositories inside chroot
           printf '%s\n' \
             'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
             'deb http://archive.ubuntu.com/ubuntu jammy-updates main universe multiverse restricted' \
@@ -40,7 +40,6 @@ jobs:
             > /workspace/live-system/chroot/etc/apt/sources.list
           
           chroot /workspace/live-system/chroot apt-get update
-          # Install required packages – no lupin-casper, just casper
           chroot /workspace/live-system/chroot apt-get install -y \
             xfce4 xfce4-goodies lightdm lightdm-gtk-greeter \
             neofetch git vim htop curl wget sudo \
