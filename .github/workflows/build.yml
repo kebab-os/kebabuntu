@@ -54,24 +54,22 @@ jobs:
           
           rm -rf config/bootloaders/isolinux 2>/dev/null || true
           
-          # Patch binary_grub to remove grub-legacy & stage2 references
+          # Patch binary_grub scripts
           find /usr/lib/live/build /usr/share/live/build -type f -name '*binary_grub*' \
             -exec sed -i '/grub-legacy/d; /stage2_eltorito/d' {} \;
           
-          # Disable problematic features
+          # Patch binary_iso: replace genisoimage with xorriso
+          for f in /usr/lib/live/build/binary_iso /usr/share/live/build/binary_iso; do
+            if [ -f \$f ]; then
+              sed -i 's|.*genisoimage.*|# GENISOIMAGE REMOVED|' \$f
+              sed -i 's|.*isohybrid.*|# ISOHYBRID REMOVED|' \$f
+              echo 'xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid \"\${LB_ISO_VOLUME}\" -publisher \"\${LB_ISO_PUBLISHER}\" -appid \"\${LB_ISO_APPLICATION}\" -eltorito-boot boot/grub/cdboot.img -eltorito-catalog boot/grub/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-gpt-basdat -output \"\${LB_ISO_IMAGE}\" binary' >> \$f
+            fi
+          done
+          
           export LB_MEMTEST='false'
           export LB_BOOTLOADER_SYSLINUX='false'
           export LB_BOOTLOADER_GRUB_LEGACY='false'
-          
-          # Custom binary_iso override (uses xorriso, no genisoimage/isohybrid)
-          mkdir -p config/scripts
-          printf '#!/bin/sh\n' > config/scripts/binary_iso
-          printf 'echo \"Running custom binary_iso with xorriso...\"\n' >> config/scripts/binary_iso
-          printf 'mkdir -p binary/boot/grub\n' >> config/scripts/binary_iso
-          printf 'cp /usr/lib/grub/i386-pc/cdboot.img binary/boot/grub/ || true\n' >> config/scripts/binary_iso
-          printf 'printf \"set timeout=10\\nset default=0\\n\\nmenuentry \\\"Kebabuntu Live\\\" {\\n    linux /casper/vmlinuz boot=casper quiet splash ---\\n    initrd /casper/initrd\\n}\\n\\nmenuentry \\\"Kebabuntu Live (safe graphics)\\\" {\\n    linux /casper/vmlinuz boot=casper nomodeset quiet splash ---\\n    initrd /casper/initrd\\n}\\n\" > binary/boot/grub/grub.cfg\n' >> config/scripts/binary_iso
-          printf 'xorriso -as mkisofs -iso-level 3 -full-iso9660-filenames -volid \"\${LB_ISO_VOLUME}\" -publisher \"\${LB_ISO_PUBLISHER}\" -appid \"\${LB_ISO_APPLICATION}\" -eltorito-boot boot/grub/cdboot.img -eltorito-catalog boot/grub/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -isohybrid-gpt-basdat -output live-image-amd64.hybrid.iso binary\n' >> config/scripts/binary_iso
-          chmod +x config/scripts/binary_iso
           
           lb build --verbose
           
