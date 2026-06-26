@@ -24,7 +24,7 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Use DEBIAN mode with Ubuntu mirrors everywhere, disable auto-security
+          # Use DEBIAN mode with Ubuntu mirrors, disable auto-security and auto-kernel
           lb config \
             --mode debian \
             --parent-distribution jammy \
@@ -41,30 +41,32 @@ jobs:
             --parent-mirror-binary http://archive.ubuntu.com/ubuntu/ \
             --mirror-binary http://archive.ubuntu.com/ubuntu/ \
             --security false \
+            --linux-flavours none \
             --debian-installer false \
             --bootappend-live 'boot=live components quiet splash' \
             --iso-publisher 'Kebabuntu' \
             --iso-volume 'Kebabuntu Live' \
             --iso-application 'Kebabuntu OS'
           
-          # Package list for XFCE
+          # Package list (kernel + XFCE) – written as a single clean printf
           mkdir -p config/package-lists
           printf '%s\n' \
-            'xfce4' \
-            'xfce4-goodies' \
-            'lightdm' \
-            'neofetch' \
-            'git' \
-            'vim' \
-            'htop' \
-            'curl' \
-            'wget' \
-            'sudo' \
-            'network-manager' \
-            'firefox' \
+            linux-image-generic \
+            xfce4 \
+            xfce4-goodies \
+            lightdm \
+            neofetch \
+            git \
+            vim \
+            htop \
+            curl \
+            wget \
+            sudo \
+            network-manager \
+            firefox \
             > config/package-lists/kebabuntu.list.chroot
           
-          # Provide correct Ubuntu sources (including security)
+          # Override auto-generated sources with correct Ubuntu repos
           mkdir -p config/archives
           printf '%s\n' \
             'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
