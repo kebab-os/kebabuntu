@@ -24,7 +24,7 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Use DEBIAN mode with Ubuntu parent distribution and mirrors
+          # Use DEBIAN mode with Ubuntu mirrors everywhere
           lb config \
             --mode debian \
             --parent-distribution jammy \
@@ -36,6 +36,8 @@ jobs:
             --mirror-bootstrap http://archive.ubuntu.com/ubuntu/ \
             --parent-mirror-chroot http://archive.ubuntu.com/ubuntu/ \
             --mirror-chroot http://archive.ubuntu.com/ubuntu/ \
+            --parent-mirror-chroot-security http://security.ubuntu.com/ubuntu/ \
+            --mirror-chroot-security http://security.ubuntu.com/ubuntu/ \
             --parent-mirror-binary http://archive.ubuntu.com/ubuntu/ \
             --mirror-binary http://archive.ubuntu.com/ubuntu/ \
             --debian-installer false \
