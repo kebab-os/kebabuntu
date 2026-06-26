@@ -24,7 +24,7 @@ jobs:
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
-          # Use DEBIAN mode with Ubuntu mirrors everywhere
+          # Use DEBIAN mode with Ubuntu mirrors everywhere, disable auto-security
           lb config \
             --mode debian \
             --parent-distribution jammy \
@@ -40,6 +40,7 @@ jobs:
             --mirror-chroot-security http://security.ubuntu.com/ubuntu/ \
             --parent-mirror-binary http://archive.ubuntu.com/ubuntu/ \
             --mirror-binary http://archive.ubuntu.com/ubuntu/ \
+            --security false \
             --debian-installer false \
             --bootappend-live 'boot=live components quiet splash' \
             --iso-publisher 'Kebabuntu' \
@@ -63,7 +64,7 @@ jobs:
             'firefox' \
             > config/package-lists/kebabuntu.list.chroot
           
-          # Override the auto-generated sources.list with correct Ubuntu repos
+          # Provide correct Ubuntu sources (including security)
           mkdir -p config/archives
           printf '%s\n' \
             'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
