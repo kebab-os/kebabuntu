@@ -63,6 +63,14 @@ jobs:
             'firefox' \
             > config/package-lists/kebabuntu.list.chroot
           
+          # Override the auto-generated sources.list with correct Ubuntu repos
+          mkdir -p config/archives
+          printf '%s\n' \
+            'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
+            'deb http://archive.ubuntu.com/ubuntu jammy-updates main universe multiverse restricted' \
+            'deb http://security.ubuntu.com/ubuntu jammy-security main universe multiverse restricted' \
+            > config/archives/ubuntu.list.chroot
+          
           # Build the ISO
           lb build --verbose
           
