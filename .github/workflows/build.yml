@@ -33,6 +33,8 @@ jobs:
             --mirror-bootstrap 'http://archive.ubuntu.com/ubuntu/' \
             --parent-mirror-binary 'http://archive.ubuntu.com/ubuntu/' \
             --mirror-binary 'http://archive.ubuntu.com/ubuntu/' \
+            --parent-mirror-binary-security 'http://security.ubuntu.com/ubuntu/' \
+            --mirror-binary-security 'http://security.ubuntu.com/ubuntu/' \
             --architecture amd64 \
             --archive-areas 'main universe multiverse restricted' \
             --parent-archive-areas 'main universe multiverse restricted' \
@@ -58,14 +60,6 @@ jobs:
             'network-manager' \
             'firefox' \
             > config/package-lists/kebabuntu.list.chroot
-          
-          # Ubuntu repositories for the live system
-          mkdir -p config/archives
-          printf '%s\n' \
-            'deb http://archive.ubuntu.com/ubuntu jammy main universe multiverse restricted' \
-            'deb http://archive.ubuntu.com/ubuntu jammy-updates main universe multiverse restricted' \
-            'deb http://security.ubuntu.com/ubuntu jammy-security main universe multiverse restricted' \
-            > config/archives/ubuntu.list.chroot
           
           lb build --verbose
           
