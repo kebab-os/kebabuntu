@@ -21,6 +21,18 @@ jobs:
           apt-get update
           apt-get install -y live-build debootstrap
           
+          # Find and patch the live-build script that writes sources.list
+          # The script lb_chroot_archives is responsible for generating apt sources
+          for f in /usr/lib/live/build/lb_chroot_archives /usr/share/live/build/lb_chroot_archives; do
+            if [ -f \"\$f\" ]; then
+              sed -i 's|security.debian.org|archive.ubuntu.com/ubuntu|g' \"\$f\"
+              sed -i 's|deb.debian.org|archive.ubuntu.com/ubuntu|g' \"\$f\"
+            fi
+          done
+          # Also patch any other script that might contain the Debian security URL
+          find /usr/lib/live/build /usr/share/live/build -type f -exec sed -i 's|http://security.debian.org/debian-security|http://archive.ubuntu.com/ubuntu|g' {} \;
+          find /usr/lib/live/build /usr/share/live/build -type f -exec sed -i 's|http://deb.debian.org/debian-security|http://archive.ubuntu.com/ubuntu|g' {} \;
+          
           mkdir -p kebabuntu-build
           cd kebabuntu-build
           
@@ -63,11 +75,6 @@ jobs:
             'network-manager' \
             'firefox' \
             > config/package-lists/kebabuntu.list.chroot
-          
-          # Override the security sources with a hook that runs inside the chroot
-          mkdir -p config/hooks/normal
-          printf '#!/bin/sh\nsed -i \"s|http://security.debian.org|http://archive.ubuntu.com/ubuntu|g\" /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null\n' > config/hooks/normal/0900-fix-sources.hook.chroot
-          chmod +x config/hooks/normal/0900-fix-sources.hook.chroot
           
           lb build --verbose
           
