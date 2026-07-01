@@ -43,10 +43,17 @@ jobs:
             --iso-volume 'Kebabuntu Live' \
             --iso-application 'Kebabuntu OS'
           
-          # Remove security and backports from chroot archives config
-          # This prevents the broken security.debian.org line from being added
-          sed -i 's/^LB_CHROOT_ARCHIVES_SECURITY=.*/LB_CHROOT_ARCHIVES_SECURITY=\"false\"/' config/chroot_archives 2>/dev/null || true
-          sed -i 's/^LB_CHROOT_ARCHIVES_BACKPORTS=.*/LB_CHROOT_ARCHIVES_BACKPORTS=\"false\"/' config/chroot_archives 2>/dev/null || true
+          # NOW patch the config files that lb config just created
+          # Disable security and backports entirely
+          for f in config/chroot_archives config/binary config/chroot config/common; do
+            if [ -f \"\$f\" ]; then
+              echo \"Patching \$f\"
+              sed -i 's|LB_CHROOT_ARCHIVES_SECURITY=\"true\"|LB_CHROOT_ARCHIVES_SECURITY=\"false\"|' \"\$f\"
+              sed -i 's|LB_CHROOT_ARCHIVES_BACKPORTS=\"true\"|LB_CHROOT_ARCHIVES_BACKPORTS=\"false\"|' \"\$f\"
+              sed -i 's|security\.debian\.org|archive.ubuntu.com/ubuntu|g' \"\$f\"
+              sed -i 's|deb\.debian\.org|archive.ubuntu.com/ubuntu|g' \"\$f\"
+            fi
+          done
           
           # Package list
           mkdir -p config/package-lists
